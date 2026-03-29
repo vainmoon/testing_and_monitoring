@@ -31,4 +31,9 @@ class Model:
 
     @property
     def features(self) -> list[str]:
-        return self.data.model.feature_names_in_
+        model = self.data.model
+        if model is None:
+            raise RuntimeError('Model is not loaded')
+        if not hasattr(model, 'feature_names_in_'):
+            raise RuntimeError('Model does not expose feature_names_in_')
+        return list(model.feature_names_in_)

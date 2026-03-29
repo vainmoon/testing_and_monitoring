@@ -1,7 +1,8 @@
+import logging
 from typing import Any
 from contextlib import asynccontextmanager
-import numpy as np
 from fastapi import FastAPI, HTTPException
+from mlflow.exceptions import MlflowException
 
 from ml_service import config
 from ml_service.features import to_dataframe
@@ -14,6 +15,7 @@ from ml_service.schemas import (
     UpdateModelResponse,
 )
 
+logger = logging.getLogger(__name__)
 
 MODEL = Model()
 
@@ -25,11 +27,18 @@ async def lifespan(app: FastAPI):
 
     Loads the initial model from MLflow on startup.
     """
-    configure_mlflow()
-    run_id = config.default_run_id()
-    MODEL.set(run_id=run_id)
+    try:
+        configure_mlflow()
+        run_id = config.default_run_id()
+        MODEL.set(run_id=run_id)
+        logger.info('Model loaded successfully on startup (run_id=%s)', run_id)
+    except RuntimeError as e:
+        logger.warning('Startup configuration error: %s. Service will run without a model.', e)
+    except MlflowException as e:
+        logger.warning('Failed to load initial model from MLflow: %s. Service will run without a model.', e)
+    except Exception as e:
+        logger.warning('Unexpected error during startup: %s. Service will run without a model.', e)
     yield
-    # add any teardown logic here if needed
 
 
 def create_app() -> FastAPI:
@@ -43,22 +52,44 @@ def create_app() -> FastAPI:
 
     @app.post('/predict', response_model=PredictResponse)
     def predict(request: PredictRequest) -> PredictResponse:
-        model = MODEL.get().model
-        if model is None:
+        model_data = MODEL.get()
+        if model_data.model is None:
             raise HTTPException(status_code=503, detail='Model is not loaded yet')
 
-        df = to_dataframe(request, needed_columns=MODEL.features)
+        try:
+            features = MODEL.features
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
 
-        probability = model.predict_proba(df)[0][1]
+        try:
+            df = to_dataframe(request, needed_columns=features)
+        except Exception as e:
+            logger.exception('Failed to build feature DataFrame')
+            raise HTTPException(status_code=422, detail=f'Failed to build feature DataFrame: {e}')
+
+        try:
+            probability = float(model_data.model.predict_proba(df)[0][1])
+        except Exception as e:
+            logger.exception('Prediction failed')
+            raise HTTPException(status_code=500, detail=f'Prediction failed: {e}')
+
         prediction = int(probability >= 0.5)
-
         return PredictResponse(prediction=prediction, probability=probability)
 
     @app.post('/updateModel', response_model=UpdateModelResponse)
     def update_model(req: UpdateModelRequest) -> UpdateModelResponse:
-        run_id = req.run_id
-        MODEL.set(run_id=run_id)
-        return UpdateModelResponse(run_id=run_id)
+        try:
+            MODEL.set(run_id=req.run_id)
+        except MlflowException as e:
+            raise HTTPException(
+                status_code=404,
+                detail=f'MLflow run not found or model artifact missing: {e}',
+            )
+        except Exception as e:
+            logger.exception('Failed to update model with run_id=%s', req.run_id)
+            raise HTTPException(status_code=503, detail=f'Failed to load model: {e}')
+        logger.info('Model updated successfully (run_id=%s)', req.run_id)
+        return UpdateModelResponse(run_id=req.run_id)
 
     return app
 

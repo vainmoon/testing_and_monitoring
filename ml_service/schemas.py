@@ -1,16 +1,19 @@
-from pydantic import BaseModel, Field
+from typing import Annotated
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 
 class PredictRequest(BaseModel):
-    age: int | None = Field(default=None, description='Возраст человека')
+    age: int | None = Field(default=None, ge=0, description='Возраст человека')
     workclass: str | None = Field(default=None, description='Тип занятости')
     fnlwgt: int | None = Field(
         default=None,
+        ge=0,
         description='Вес наблюдения в данных переписи',
     )
     education: str | None = Field(default=None, description='Образование')
     education_num: int | None = Field(
         default=None,
+        ge=0,
         alias='education.num',
         description='Уровень образования в виде числа',
     )
@@ -34,16 +37,20 @@ class PredictRequest(BaseModel):
     )
     capital_gain: int | None = Field(
         default=None,
+        ge=0,
         alias='capital.gain',
         description='Доход от капитала (прибыль от продажи активов)',
     )
     capital_loss: int | None = Field(
         default=None,
+        ge=0,
         alias='capital.loss',
         description='Убытки от капитала',
     )
     hours_per_week: int | None = Field(
         default=None,
+        ge=0,
+        le=168,
         alias='hours.per.week',
         description='Количество рабочих часов в неделю',
     )
@@ -53,9 +60,6 @@ class PredictRequest(BaseModel):
         description='Страна происхождения',
     )
 
-    class Config:
-        allow_population_by_field_name = True
-
 
 class PredictResponse(BaseModel):
     prediction: int = Field(description='Предсказанный класс')
@@ -63,9 +67,10 @@ class PredictResponse(BaseModel):
 
 
 class UpdateModelRequest(BaseModel):
-    run_id: str = Field(description='MLflow run_id')
+    run_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(
+        description='MLflow run_id',
+    )
 
 
 class UpdateModelResponse(BaseModel):
     run_id: str = Field(description='MLflow run_id')
-
