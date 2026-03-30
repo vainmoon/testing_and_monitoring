@@ -1,4 +1,4 @@
-from prometheus_client import Counter, Gauge, Histogram
+from prometheus_client import Counter, Gauge, Histogram, Info
 
 PREPROCESSING_DURATION = Histogram(
     'preprocessing_duration_seconds',
@@ -6,9 +6,16 @@ PREPROCESSING_DURATION = Histogram(
     buckets=(.0001, .0005, .001, .0025, .005, .01, .025, .05),
 )
 
-INPUT_FEATURE_VALUE = Gauge(
-    'input_feature_value',
-    'Last observed value of a numeric input feature per request',
+
+INPUT_FEATURE_VALUE_SUM = Counter(
+    'input_feature_value_sum',
+    'Cumulative sum of observed numeric feature values',
+    ['feature'],
+)
+
+INPUT_FEATURE_VALUE_COUNT = Counter(
+    'input_feature_value_count',
+    'Number of times a numeric feature value was observed',
     ['feature'],
 )
 
@@ -52,6 +59,11 @@ MODEL_FEATURE_REQUIRED = Gauge(
     ['feature'],
 )
 
+MODEL_INFO = Info(
+    'model',
+    'Metadata of the currently loaded model: run_id, type, required features',
+)
+
 _NUMERIC_FEATURES = (
     'age',
     'fnlwgt',
@@ -62,17 +74,28 @@ _NUMERIC_FEATURES = (
 )
 
 
-def record_model_loaded(run_id: str, features: list[str], old_run_id: str | None = None) -> None:
+def record_model_loaded(
+    run_id: str,
+    features: list[str],
+    model_type: str | None = None,
+    old_run_id: str | None = None,
+) -> None:
     if old_run_id and old_run_id != run_id:
         MODEL_CURRENT_INFO.labels(run_id=old_run_id).set(0)
     MODEL_CURRENT_INFO.labels(run_id=run_id).set(1)
     MODEL_FEATURES_TOTAL.set(len(features))
     for feature in features:
         MODEL_FEATURE_REQUIRED.labels(feature=feature).set(1)
+    MODEL_INFO.info({
+        'run_id': run_id,
+        'type': model_type or 'unknown',
+        'features': ','.join(features),
+    })
 
 
 def record_input_features(request) -> None:
     for feature in _NUMERIC_FEATURES:
         value = getattr(request, feature.replace('.', '_'), None)
         if value is not None:
-            INPUT_FEATURE_VALUE.labels(feature=feature).set(value)
+            INPUT_FEATURE_VALUE_SUM.labels(feature=feature).inc(value)
+            INPUT_FEATURE_VALUE_COUNT.labels(feature=feature).inc()

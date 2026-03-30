@@ -43,7 +43,9 @@ async def lifespan(app: FastAPI):
         configure_mlflow()
         run_id = config.default_run_id()
         MODEL.set(run_id=run_id)
-        record_model_loaded(run_id=run_id, features=MODEL.features)
+        pipeline = MODEL.get().model
+        model_type = type(pipeline.steps[-1][1]).__name__ if hasattr(pipeline, 'steps') else type(pipeline).__name__
+        record_model_loaded(run_id=run_id, features=MODEL.features, model_type=model_type)
         logger.info('Model loaded successfully on startup (run_id=%s)', run_id)
     except RuntimeError as e:
         logger.warning('Startup configuration error: %s. Service will run without a model.', e)
@@ -118,7 +120,9 @@ def create_app() -> FastAPI:
 
         MODEL_UPDATES_TOTAL.inc()
         try:
-            record_model_loaded(run_id=req.run_id, features=MODEL.features, old_run_id=old_run_id)
+            pipeline = MODEL.get().model
+            model_type = type(pipeline.steps[-1][1]).__name__ if hasattr(pipeline, 'steps') else type(pipeline).__name__
+            record_model_loaded(run_id=req.run_id, features=MODEL.features, model_type=model_type, old_run_id=old_run_id)
         except Exception as e:
             logger.warning('Failed to record model info metrics: %s', e)
         logger.info('Model updated successfully (run_id=%s)', req.run_id)
