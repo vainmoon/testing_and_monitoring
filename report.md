@@ -60,3 +60,37 @@
 | `tests/test_model.py` | Класс модели |
 | `tests/test_handlers.py` | Логика хэндлеров и коды ответов |
 | `tests/test_integration.py` | Работа сервиса целиком |
+
+## Логируемые метрики
+
+### Технические метрики сервиса (prometheus_fastapi_instrumentator)
+
+| Метрика | Описание |
+|---|---|
+| `http_requests_total` | Общее число HTTP-запросов |
+| `http_request_duration_seconds` | Latency HTTP-запроса от получения до отправки ответа |
+| `http_requests_in_progress`| Число запросов, обрабатываемых прямо сейчас |
+
+### Метрики входных данных
+
+| Метрика | Описание |
+|---|---|
+| `preprocessing_duration_seconds` | Время построения DataFrame в `to_dataframe()` |
+| `input_feature_value` | Последнее увиденное значение числовой фичи |
+
+### Метрики работы модели
+
+| Метрика | Описание |
+|---|---|
+| `model_inference_duration_seconds` | Время выполнения `model.predict_proba()` |
+| `model_prediction_probability` | Распределение выходной вероятности |
+| `model_predictions_total` | Число предсказаний с разбивкой по классу (0 или 1) |
+
+### Мониторинг событий и состояния модели
+
+| Метрика | Описание |
+|---|---|
+| `model_updates_total` | Число успешных обновлений модели через `/updateModel` |
+| `model_current_info` | Текущая активная модель (1 = загружена сейчас, 0 = была заменена) |
+| `model_features_total` | Количество фичей, которые требует текущая модель |
+| `model_feature_required` | Признак требуется текущей моделью (1 = требуется) |
