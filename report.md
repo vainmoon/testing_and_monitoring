@@ -46,3 +46,17 @@
 
 **11. Ошибка при вызове `predict_proba`** \
 В таком случае пользователю отправляется `500` с деталями ошибки.
+
+## Тесты сервиса
+
+Запуск: `pip install -r requirements-dev.txt && pytest tests/`
+
+### Краткое описание
+
+| Файл | Что тестируется |
+|---|---|
+| `tests/test_features.py` | Функции предобработки данных |
+| `tests/test_schemas.py` | Валидация Pydantic-схем |
+| `tests/test_model.py` | Класс модели |
+| `tests/test_handlers.py` | Логика хэндлеров и коды ответов |
+| `tests/test_integration.py` | Работа сервиса целиком |
