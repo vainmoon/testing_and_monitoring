@@ -69,14 +69,13 @@
 |---|---|
 | `http_requests_total` | Общее число HTTP-запросов |
 | `http_request_duration_seconds` | Latency HTTP-запроса от получения до отправки ответа |
-| `http_requests_in_progress`| Число запросов, обрабатываемых прямо сейчас |
 
 ### Метрики входных данных
 
 | Метрика | Описание |
 |---|---|
 | `preprocessing_duration_seconds` | Время построения DataFrame в `to_dataframe()` |
-| `input_feature_value_sum & input_feature_value_count` | Метрики для подсчета средних значений фичей |
+| `input_feature_value` | Метрики для подсчета средних значений фичей |
 
 ### Метрики работы модели
 

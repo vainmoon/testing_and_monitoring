@@ -92,6 +92,8 @@ def create_app() -> FastAPI:
         inference_start = time.perf_counter()
         try:
             probability = float(model_data.model.predict_proba(df)[0][1])
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=f'Invalid feature values: {e}')
         except Exception as e:
             logger.exception('Prediction failed')
             raise HTTPException(status_code=500, detail=f'Prediction failed: {e}')

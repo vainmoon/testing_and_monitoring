@@ -1,4 +1,4 @@
-from prometheus_client import Counter, Gauge, Histogram, Info
+from prometheus_client import Counter, Gauge, Histogram, Info, Summary
 
 PREPROCESSING_DURATION = Histogram(
     'preprocessing_duration_seconds',
@@ -7,15 +7,9 @@ PREPROCESSING_DURATION = Histogram(
 )
 
 
-INPUT_FEATURE_VALUE_SUM = Counter(
-    'input_feature_value_sum',
-    'Cumulative sum of observed numeric feature values',
-    ['feature'],
-)
-
-INPUT_FEATURE_VALUE_COUNT = Counter(
-    'input_feature_value_count',
-    'Number of times a numeric feature value was observed',
+INPUT_FEATURE_VALUE = Summary(
+    'input_feature_value',
+    'Observed values of numeric input features',
     ['feature'],
 )
 
@@ -97,5 +91,4 @@ def record_input_features(request) -> None:
     for feature in _NUMERIC_FEATURES:
         value = getattr(request, feature.replace('.', '_'), None)
         if value is not None:
-            INPUT_FEATURE_VALUE_SUM.labels(feature=feature).inc(value)
-            INPUT_FEATURE_VALUE_COUNT.labels(feature=feature).inc()
+            INPUT_FEATURE_VALUE.labels(feature=feature).observe(value)
