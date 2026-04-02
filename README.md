@@ -17,6 +17,7 @@
 ```bash
 export MLFLOW_TRACKING_URI=http://158.160.2.37:5000/
 export DEFAULT_RUN_ID=<your_run_id>
+export EVIDENTLY_PROJECT_ID=<your_evidently_project_id>
 docker compose up --build
 ```
 
