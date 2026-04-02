@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import threading
 
 import pandas as pd
@@ -33,45 +32,33 @@ class DriftMonitor:
         return pd.DataFrame(data) if data else pd.DataFrame()
 
 
-def _load_reference_data(path: str) -> pd.DataFrame | None:
-    if not os.path.exists(path):
-        logger.warning('Reference data file not found: %s', path)
-        return None
-    try:
-        return pd.read_csv(path)
-    except Exception as e:
-        logger.warning('Failed to load reference data from %s: %s', path, e)
-        return None
-
-
 async def run_drift_monitoring(monitor: DriftMonitor) -> None:
+    """
+    Async coroutine that periodically builds an Evidently drift report
+    from buffered predictions and uploads it to the RemoteWorkspace.
 
+    The first full window of predictions is used as reference data.
+    Subsequent windows are compared against it.
+
+    Start at app launch with asyncio.ensure_future(run_drift_monitoring(monitor)).
+    """
     try:
         evidently_url = config.evidently_url()
         project_id = config.evidently_project_id()
-        reference_path = config.reference_data_path()
         interval = config.drift_report_interval()
         min_window = config.drift_window_size()
     except RuntimeError as e:
         logger.warning('Drift monitoring disabled: %s', e)
         return
 
-    reference_data = _load_reference_data(reference_path)
-    if reference_data is None:
-        logger.warning('Drift monitoring disabled: no reference data available')
-        return
-
     workspace = RemoteWorkspace(evidently_url)
-    logger.info(
-        'Drift monitoring started (interval=%ds, min_window=%d, project=%s)',
-        interval,
-        min_window,
-        project_id,
-    )
+    reference_data: pd.DataFrame | None = None
+    logger.info('Drift monitoring started (interval=%ds, min_window=%d)', interval, min_window)
 
     while True:
         await asyncio.sleep(interval)
         current_data = monitor.pop_current_data()
+
         if len(current_data) < min_window:
             logger.debug(
                 'Skipping drift report: only %d samples collected (min %d required)',
@@ -79,6 +66,14 @@ async def run_drift_monitoring(monitor: DriftMonitor) -> None:
                 min_window,
             )
             continue
+
+        if reference_data is None:
+            reference_data = current_data
+            logger.info(
+                'Reference data initialised from first window (%d samples)', len(reference_data)
+            )
+            continue
+
         try:
             report = Report(metrics=[DataDriftPreset()])
             report.run(reference_data=reference_data, current_data=current_data)

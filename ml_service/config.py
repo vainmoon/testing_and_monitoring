@@ -35,13 +35,6 @@ def evidently_project_id() -> str:
     return project_id
 
 
-def reference_data_path() -> str:
-    path = os.getenv('REFERENCE_DATA_PATH')
-    if not path:
-        raise RuntimeError('Please set REFERENCE_DATA_PATH')
-    return path
-
-
 def drift_report_interval() -> int:
     return int(os.getenv('DRIFT_REPORT_INTERVAL_SECONDS', '60'))
 
