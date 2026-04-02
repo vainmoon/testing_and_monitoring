@@ -14,10 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 class DriftMonitor:
-    """
-    Thread-safe buffer that accumulates feature rows and predictions
-    for periodic drift reporting.
-    """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -49,12 +45,7 @@ def _load_reference_data(path: str) -> pd.DataFrame | None:
 
 
 async def run_drift_monitoring(monitor: DriftMonitor) -> None:
-    """
-    Async coroutine that periodically builds an Evidently drift report
-    from buffered predictions and uploads it to the RemoteWorkspace.
 
-    Start at app launch with asyncio.ensure_future(run_drift_monitoring(monitor)).
-    """
     try:
         evidently_url = config.evidently_url()
         project_id = config.evidently_project_id()
