@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from typing import Any
@@ -8,6 +9,7 @@ from mlflow.exceptions import MlflowException
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from ml_service import config
+from ml_service.drift_monitor import DriftMonitor, run_drift_monitoring
 from ml_service.features import to_dataframe
 from ml_service.metrics import (
     INFERENCE_DURATION,
@@ -30,6 +32,7 @@ from ml_service.schemas import (
 logger = logging.getLogger(__name__)
 
 MODEL = Model()
+DRIFT_MONITOR = DriftMonitor()
 
 
 @asynccontextmanager
@@ -53,6 +56,8 @@ async def lifespan(app: FastAPI):
         logger.warning('Failed to load initial model from MLflow: %s. Service will run without a model.', e)
     except Exception as e:
         logger.warning('Unexpected error during startup: %s. Service will run without a model.', e)
+
+    asyncio.ensure_future(run_drift_monitoring(DRIFT_MONITOR))
     yield
 
 
@@ -103,6 +108,8 @@ def create_app() -> FastAPI:
         prediction = int(probability >= 0.5)
         PREDICTION_PROBABILITY.observe(probability)
         PREDICTIONS_TOTAL.labels(prediction=str(prediction)).inc()
+
+        DRIFT_MONITOR.add(df, prediction, probability)
 
         return PredictResponse(prediction=prediction, probability=probability)
 
