@@ -76,8 +76,8 @@ async def run_drift_monitoring(monitor: DriftMonitor) -> None:
 
         try:
             report = Report(metrics=[DataDriftPreset()])
-            report.run(reference_data=reference_data, current_data=current_data)
-            workspace.add_run(project_id, report)
+            result = report.run(reference_data=reference_data, current_data=current_data)
+            workspace.add_run(project_id, result)
             logger.info('Drift report uploaded (%d samples)', len(current_data))
         except Exception as e:
             logger.exception('Failed to generate or upload drift report: %s', e)
